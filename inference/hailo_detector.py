@@ -6,8 +6,8 @@ Kompatibel mit Hailo Python SDK (hailo_platform).
 
 import numpy as np
 import cv2
-from dataclasses import dataclass, field
-from typing import Optional
+from dataclasses import dataclass
+from pathlib import Path
 
 
 @dataclass
@@ -37,15 +37,14 @@ MARITIME_CLASSES = {
 
 
 class HailoDetector:
-    """
-    Objekterkennung mit Hailo-8 NPU.
-    Benötigt hailo_platform SDK (auf RPi 5 mit Hailo-8 installiert).
-    """
+    """Objekterkennung mit Hailo-8 NPU."""
 
-    def __init__(self, hef_path: str, input_size: tuple = (640, 640), conf_threshold: float = 0.5):
-        self.hef_path = hef_path
+    def __init__(self, model_path: str, input_size: tuple = (640, 640), conf_threshold: float = 0.5):
+        self.model_path = model_path
+        self.hef_path = model_path  # backward compat
         self.input_size = input_size
         self.conf_threshold = conf_threshold
+        self._backend = None
         self._init_hailo()
 
     def _init_hailo(self):
@@ -53,10 +52,11 @@ class HailoDetector:
         try:
             from hailo_platform import (
                 HEF, VDevice, HailoStreamInterface,
-                InferVStreams, ConfigureParams, InputVStreamParams, OutputVStreamParams
+                InferVStreams, ConfigureParams, InputVStreamParams, OutputVStreamParams,
+                FormatType,
             )
 
-            self.hef    = HEF(self.hef_path)
+            self.hef    = HEF(self.model_path)
             self.device = VDevice()
 
             configure_params = ConfigureParams.create_from_hef(
@@ -66,98 +66,139 @@ class HailoDetector:
             self.network_group  = self.network_groups[0]
             self.network_group_params = self.network_group.create_params()
 
-            self.input_vstream_params  = InputVStreamParams.make(self.network_group)
-            self.output_vstream_params = OutputVStreamParams.make(self.network_group)
+            # UINT8 matches the uint8 RGB frames from preprocess() — no per-frame conversion
+            self.input_vstream_params  = InputVStreamParams.make(
+                self.network_group, format_type=FormatType.UINT8)
+            self.output_vstream_params = OutputVStreamParams.make(
+                self.network_group, format_type=FormatType.FLOAT32)
 
-            print(f"✅ Hailo-8 initialisiert: {self.hef_path}")
-            self._use_hailo = True
+            # Build persistent InferVStreams context to avoid per-frame setup overhead
+            self._infer_pipeline = InferVStreams(
+                self.network_group,
+                self.input_vstream_params,
+                self.output_vstream_params,
+            )
+            self._infer_pipeline.__enter__()
+            self._network_activation = self.network_group.activate(self.network_group_params)
+            self._network_activation.__enter__()
 
-        except ImportError:
-            print("⚠️  hailo_platform nicht verfügbar – Fallback auf ONNX Runtime")
-            self._init_onnx_fallback()
-            self._use_hailo = False
+            self._in_name  = self.hef.get_input_vstream_infos()[0].name
+            self._out_name = self.hef.get_output_vstream_infos()[0].name
 
-    def _init_onnx_fallback(self):
-        """ONNX Runtime Fallback (für Entwicklung ohne Hailo)."""
-        import onnxruntime as ort
-        onnx_path = self.hef_path.replace(".hef", ".onnx")
-        self.ort_session = ort.InferenceSession(onnx_path, providers=["CPUExecutionProvider"])
-        self.input_name  = self.ort_session.get_inputs()[0].name
-        print(f"✅ ONNX Fallback geladen: {onnx_path}")
+            print(f"✅ Hailo-8 initialisiert: {self.model_path}")
+            self._backend = "hailo"
 
-    def preprocess(self, frame: np.ndarray) -> np.ndarray:
-        """Bereitet Bild für Inferenz vor (resize + normalize)."""
-        resized = cv2.resize(frame, self.input_size)
-        rgb     = cv2.cvtColor(resized, cv2.COLOR_BGR2RGB)
-        tensor  = rgb.astype(np.float32) / 255.0
-        return tensor[np.newaxis, ...]  # (1, H, W, 3)
+        except Exception as exc:
+            raise RuntimeError(f"Hailo-8 Initialisierung fehlgeschlagen: {exc}") from exc
 
-    def postprocess(self, raw_output: np.ndarray, orig_shape: tuple) -> list[Detection]:
+    def preprocess(self, lores_frame: np.ndarray) -> np.ndarray:
         """
-        Verarbeitet Roh-Output des YOLO-Modells.
-        raw_output shape: (1, num_detections, 4+num_classes)
+        lores_frame is already INPUT_W×INPUT_H RGB from the ISP.
+        Returns uint8 array ready for Hailo UINT8 input stream.
         """
-        detections = []
+        if lores_frame.dtype != np.uint8:
+            lores_frame = lores_frame.astype(np.uint8, copy=False)
+        elif not lores_frame.flags["C_CONTIGUOUS"]:
+            lores_frame = np.ascontiguousarray(lores_frame)
+        return lores_frame
+
+
+    def postprocess(self, raw_output, orig_shape: tuple) -> list[Detection]:
+        """
+        Handles Hailo NMS nested list output: list of 80 per-class arrays
+        each shaped (N, 5) with [ymin, xmin, ymax, xmax, conf] in normalised coords.
+        Also handles raw anchor tensor (1, 84, 8400) for ONNX fallback.
+        """
         orig_h, orig_w = orig_shape[:2]
+        detections = []
+
+        # ── Hailo NMS path: nested list ──────────────────────────────────────
+        if isinstance(raw_output, (list, tuple)):
+            raw_output = raw_output[0] if len(raw_output) == 1 else raw_output
+            if isinstance(raw_output, (list, tuple)):
+                for class_id, class_dets in enumerate(raw_output):
+                    class_arr = np.asarray(class_dets)
+                    if class_arr.size == 0:
+                        continue
+                    class_arr = class_arr.reshape(-1, class_arr.shape[-1])
+                    for det in class_arr:
+                        ymin, xmin, ymax, xmax, conf = det[:5]
+                        conf = float(conf)
+                        if conf < self.conf_threshold:
+                            continue
+                        if max(abs(xmin), abs(ymin), abs(xmax), abs(ymax)) <= 1.5:
+                            x1 = int(float(xmin) * orig_w)
+                            y1 = int(float(ymin) * orig_h)
+                            x2 = int(float(xmax) * orig_w)
+                            y2 = int(float(ymax) * orig_h)
+                        else:
+                            x1, y1, x2, y2 = int(xmin), int(ymin), int(xmax), int(ymax)
+                        x1, x2 = max(0, x1), min(orig_w, x2)
+                        y1, y2 = max(0, y1), min(orig_h, y2)
+                        if x2 <= x1 or y2 <= y1:
+                            continue
+                        detections.append(Detection(
+                            class_id=class_id,
+                            class_name=MARITIME_CLASSES.get(class_id, f"class_{class_id}"),
+                            confidence=conf,
+                            bbox=(x1, y1, x2, y2),
+                        ))
+                return detections
+            raw_output = np.asarray(raw_output)
+
+        # ── Raw anchor tensor path: (1, 84, 8400) ────────────────────────────
+        raw_output = np.asarray(raw_output)
+        out = raw_output[0] if raw_output.ndim == 3 else raw_output
+        if out.ndim != 2 or out.shape[0] < 5:
+            return detections
+
+        boxes_raw  = out[:4, :].T
+        scores_raw = out[4:, :].T
+        class_ids  = np.argmax(scores_raw, axis=1)
+        confs      = scores_raw[np.arange(len(class_ids)), class_ids]
+        mask       = confs >= self.conf_threshold
+        boxes_raw, confs, class_ids = boxes_raw[mask], confs[mask], class_ids[mask]
+
         scale_x = orig_w / self.input_size[0]
         scale_y = orig_h / self.input_size[1]
-
-        predictions = raw_output[0]  # (num_det, 4+classes)
-
-        for pred in predictions:
-            cx, cy, w, h = pred[:4]
-            class_scores  = pred[4:]
-            class_id      = int(np.argmax(class_scores))
-            confidence     = float(class_scores[class_id])
-
-            if confidence < self.conf_threshold:
-                continue
-
-            # Center-Format → Corner-Format, skaliert auf Originalgröße
-            x1 = int((cx - w / 2) * scale_x)
-            y1 = int((cy - h / 2) * scale_y)
-            x2 = int((cx + w / 2) * scale_x)
-            y2 = int((cy + h / 2) * scale_y)
-
-            # Clipping
-            x1, x2 = max(0, x1), min(orig_w, x2)
-            y1, y2 = max(0, y1), min(orig_h, y2)
-
+        for box, conf, cid in zip(boxes_raw, confs, class_ids):
+            cx, cy, w, h = box
+            x1 = max(0, int((cx - w / 2) * scale_x))
+            y1 = max(0, int((cy - h / 2) * scale_y))
+            x2 = min(orig_w, int((cx + w / 2) * scale_x))
+            y2 = min(orig_h, int((cy + h / 2) * scale_y))
             detections.append(Detection(
-                class_id=class_id,
-                class_name=MARITIME_CLASSES.get(class_id, f"class_{class_id}"),
-                confidence=confidence,
+                class_id=int(cid),
+                class_name=MARITIME_CLASSES.get(int(cid), f"class_{cid}"),
+                confidence=float(conf),
                 bbox=(x1, y1, x2, y2),
             ))
-
         return detections
 
     def infer(self, frame: np.ndarray) -> list[Detection]:
-        """Vollständige Inferenz: Vorverarbeitung → NPU → Nachverarbeitung."""
+        """Vollständige Inferenz: Vorverarbeitung → Hailo-8 → Nachverarbeitung."""
         tensor = self.preprocess(frame)
-
-        if self._use_hailo:
-            raw = self._hailo_infer(tensor)
-        else:
-            raw = self._onnx_infer(tensor)
-
+        raw = self._hailo_infer(tensor)
         return self.postprocess(raw, frame.shape)
 
-    def _hailo_infer(self, tensor: np.ndarray) -> np.ndarray:
-        from hailo_platform import InferVStreams
-        with InferVStreams(
-            self.network_group,
-            self.input_vstream_params,
-            self.output_vstream_params
-        ) as infer_pipeline:
-            with self.network_group.activate(self.network_group_params):
-                input_data = {
-                    self.hef.get_input_vstream_infos()[0].name: tensor
-                }
-                raw_detections = infer_pipeline.infer(input_data)
-                return list(raw_detections.values())[0]
+    def _hailo_infer(self, tensor: np.ndarray):
+        """Run one frame through the persistent Hailo InferVStreams context."""
+        raw = self._infer_pipeline.infer({self._in_name: tensor[np.newaxis]})
+        return raw[self._out_name]
 
-    def _onnx_infer(self, tensor: np.ndarray) -> np.ndarray:
-        # ONNX erwartet (1, 3, H, W) statt (1, H, W, 3)
-        tensor_chw = np.transpose(tensor, (0, 3, 1, 2))
-        return self.ort_session.run(None, {self.input_name: tensor_chw})[0]
+    def __del__(self):
+        """Clean up persistent Hailo contexts on destruction."""
+        try:
+            self._network_activation.__exit__(None, None, None)
+        except Exception:
+            pass
+        try:
+            self._infer_pipeline.__exit__(None, None, None)
+        except Exception:
+            pass
+        try:
+            self.device.release()
+        except Exception:
+            pass
+
+    

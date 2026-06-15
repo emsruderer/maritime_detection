@@ -1,0 +1,251 @@
+digraph somegraph {
+  label=<<font point-size="28"><b>Network:</b> yolov8m.hef</font>>;
+  labelloc="t";
+  packmode="array_t2";
+  rankdir="LR";
+  Node39 [fixedsize="true", height="0.5", shape="rectangle", width="1", label="user_output"];
+  Node40 [fixedsize="true", height="0.5", shape="rectangle", width="1", label="user_input"];
+  subgraph cluster_00 {
+    bgcolor="lightgrey";
+    color="lightgrey";
+    label=<<table border="0">
+	<tr><td align="text">UserBufQEl_post_infer0yolov8m/yolov8_nms_postprocess</td></tr>
+</table>>;
+    labelloc="t";
+    style="rounded";
+    node [color="white", fixedsize="true", height="0.5", shape="rectangle", style="filled", width="0.7"];
+    Node0 [tooltip="UserBufQEl_post_infer0yolov8m/yolov8_nms_postprocess(sink30)", label="sink"];
+    Node1 [tooltip="UserBufQEl_post_infer0yolov8m/yolov8_nms_postprocess(source31)", label="source"];
+    Node0->Node1 [style="invis"];
+  }
+  subgraph cluster_11 {
+    bgcolor="lightgrey";
+    color="lightgrey";
+    label=<<table border="0">
+	<tr><td align="text">NmsPPMuxEl0YOLOV8-Post-Process</td></tr>
+</table>>;
+    labelloc="t";
+    style="rounded";
+    node [color="white", fixedsize="true", height="0.5", shape="rectangle", style="filled", width="0.7"];
+    Node2 [tooltip="NmsPPMuxEl0YOLOV8-Post-Process(sink6)", label="sink"];
+    Node3 [tooltip="NmsPPMuxEl0YOLOV8-Post-Process(sink7)", label="sink"];
+    Node4 [tooltip="NmsPPMuxEl0YOLOV8-Post-Process(sink8)", label="sink"];
+    Node5 [tooltip="NmsPPMuxEl0YOLOV8-Post-Process(sink9)", label="sink"];
+    Node6 [tooltip="NmsPPMuxEl0YOLOV8-Post-Process(sink10)", label="sink"];
+    Node7 [tooltip="NmsPPMuxEl0YOLOV8-Post-Process(sink11)", label="sink"];
+    Node8 [tooltip="NmsPPMuxEl0YOLOV8-Post-Process(source5)", label="source"];
+    Node6->Node8 [style="invis"];
+  }
+  subgraph cluster_22 {
+    bgcolor="lightgrey";
+    color="lightgrey";
+    label=<<table border="0">
+	<tr><td align="text">PullQEl_nms0yolov8m/conv83_123</td></tr>
+</table>>;
+    labelloc="t";
+    style="rounded";
+    node [color="white", fixedsize="true", height="0.5", shape="rectangle", style="filled", width="0.7"];
+    Node9 [tooltip="PullQEl_nms0yolov8m/conv83_123(sink28)", label="sink"];
+    Node10 [tooltip="PullQEl_nms0yolov8m/conv83_123(source29)", label="source"];
+    Node9->Node10 [style="invis"];
+  }
+  subgraph cluster_33 {
+    bgcolor="lightgrey";
+    color="lightgrey";
+    label=<<table border="0">
+	<tr><td align="text">HwReadEl0yolov8m/conv83_123</td></tr>
+</table>>;
+    labelloc="t";
+    style="rounded";
+    node [color="white", fixedsize="true", height="0.5", shape="rectangle", style="filled", width="0.7"];
+    Node11 [style="invis"];
+    Node12 [tooltip="HwReadEl0yolov8m/conv83_123(source27)", label="source"];
+    Node11->Node12 [style="invis"];
+  }
+  subgraph cluster_44 {
+    bgcolor="lightgrey";
+    color="lightgrey";
+    label=<<table border="0">
+	<tr><td align="text">PullQEl_nms1yolov8m/conv82_123</td></tr>
+</table>>;
+    labelloc="t";
+    style="rounded";
+    node [color="white", fixedsize="true", height="0.5", shape="rectangle", style="filled", width="0.7"];
+    Node13 [tooltip="PullQEl_nms1yolov8m/conv82_123(sink25)", label="sink"];
+    Node14 [tooltip="PullQEl_nms1yolov8m/conv82_123(source26)", label="source"];
+    Node13->Node14 [style="invis"];
+  }
+  subgraph cluster_55 {
+    bgcolor="lightgrey";
+    color="lightgrey";
+    label=<<table border="0">
+	<tr><td align="text">HwReadEl1yolov8m/conv82_123</td></tr>
+</table>>;
+    labelloc="t";
+    style="rounded";
+    node [color="white", fixedsize="true", height="0.5", shape="rectangle", style="filled", width="0.7"];
+    Node15 [style="invis"];
+    Node16 [tooltip="HwReadEl1yolov8m/conv82_123(source24)", label="source"];
+    Node15->Node16 [style="invis"];
+  }
+  subgraph cluster_66 {
+    bgcolor="lightgrey";
+    color="lightgrey";
+    label=<<table border="0">
+	<tr><td align="text">PullQEl_nms2yolov8m/conv71_123</td></tr>
+</table>>;
+    labelloc="t";
+    style="rounded";
+    node [color="white", fixedsize="true", height="0.5", shape="rectangle", style="filled", width="0.7"];
+    Node17 [tooltip="PullQEl_nms2yolov8m/conv71_123(sink22)", label="sink"];
+    Node18 [tooltip="PullQEl_nms2yolov8m/conv71_123(source23)", label="source"];
+    Node17->Node18 [style="invis"];
+  }
+  subgraph cluster_77 {
+    bgcolor="lightgrey";
+    color="lightgrey";
+    label=<<table border="0">
+	<tr><td align="text">HwReadEl2yolov8m/conv71_123</td></tr>
+</table>>;
+    labelloc="t";
+    style="rounded";
+    node [color="white", fixedsize="true", height="0.5", shape="rectangle", style="filled", width="0.7"];
+    Node19 [style="invis"];
+    Node20 [tooltip="HwReadEl2yolov8m/conv71_123(source21)", label="source"];
+    Node19->Node20 [style="invis"];
+  }
+  subgraph cluster_88 {
+    bgcolor="lightgrey";
+    color="lightgrey";
+    label=<<table border="0">
+	<tr><td align="text">PullQEl_nms3yolov8m/conv70_123</td></tr>
+</table>>;
+    labelloc="t";
+    style="rounded";
+    node [color="white", fixedsize="true", height="0.5", shape="rectangle", style="filled", width="0.7"];
+    Node21 [tooltip="PullQEl_nms3yolov8m/conv70_123(sink19)", label="sink"];
+    Node22 [tooltip="PullQEl_nms3yolov8m/conv70_123(source20)", label="source"];
+    Node21->Node22 [style="invis"];
+  }
+  subgraph cluster_99 {
+    bgcolor="lightgrey";
+    color="lightgrey";
+    label=<<table border="0">
+	<tr><td align="text">HwReadEl3yolov8m/conv70_123</td></tr>
+</table>>;
+    labelloc="t";
+    style="rounded";
+    node [color="white", fixedsize="true", height="0.5", shape="rectangle", style="filled", width="0.7"];
+    Node23 [style="invis"];
+    Node24 [tooltip="HwReadEl3yolov8m/conv70_123(source18)", label="source"];
+    Node23->Node24 [style="invis"];
+  }
+  subgraph cluster_1010 {
+    bgcolor="lightgrey";
+    color="lightgrey";
+    label=<<table border="0">
+	<tr><td align="text">PullQEl_nms1yolov8m/conv58_123</td></tr>
+</table>>;
+    labelloc="t";
+    style="rounded";
+    node [color="white", fixedsize="true", height="0.5", shape="rectangle", style="filled", width="0.7"];
+    Node25 [tooltip="PullQEl_nms1yolov8m/conv58_123(sink16)", label="sink"];
+    Node26 [tooltip="PullQEl_nms1yolov8m/conv58_123(source17)", label="source"];
+    Node25->Node26 [style="invis"];
+  }
+  subgraph cluster_1211 {
+    bgcolor="lightgrey";
+    color="lightgrey";
+    label=<<table border="0">
+	<tr><td align="text">HwReadEl1yolov8m/conv58_123</td></tr>
+</table>>;
+    labelloc="t";
+    style="rounded";
+    node [color="white", fixedsize="true", height="0.5", shape="rectangle", style="filled", width="0.7"];
+    Node27 [style="invis"];
+    Node28 [tooltip="HwReadEl1yolov8m/conv58_123(source15)", label="source"];
+    Node27->Node28 [style="invis"];
+  }
+  subgraph cluster_1312 {
+    bgcolor="lightgrey";
+    color="lightgrey";
+    label=<<table border="0">
+	<tr><td align="text">PullQEl_nms2yolov8m/conv57_123</td></tr>
+</table>>;
+    labelloc="t";
+    style="rounded";
+    node [color="white", fixedsize="true", height="0.5", shape="rectangle", style="filled", width="0.7"];
+    Node29 [tooltip="PullQEl_nms2yolov8m/conv57_123(sink13)", label="sink"];
+    Node30 [tooltip="PullQEl_nms2yolov8m/conv57_123(source14)", label="source"];
+    Node29->Node30 [style="invis"];
+  }
+  subgraph cluster_1413 {
+    bgcolor="lightgrey";
+    color="lightgrey";
+    label=<<table border="0">
+	<tr><td align="text">HwReadEl2yolov8m/conv57_123</td></tr>
+</table>>;
+    labelloc="t";
+    style="rounded";
+    node [color="white", fixedsize="true", height="0.5", shape="rectangle", style="filled", width="0.7"];
+    Node31 [style="invis"];
+    Node32 [tooltip="HwReadEl2yolov8m/conv57_123(source12)", label="source"];
+    Node31->Node32 [style="invis"];
+  }
+  subgraph cluster_1514 {
+    bgcolor="lightgrey";
+    color="lightgrey";
+    label=<<table border="0">
+	<tr><td align="text">PreInferEl1yolov8m/input_layer1</td></tr>
+</table>>;
+    labelloc="t";
+    style="rounded";
+    node [color="white", fixedsize="true", height="0.5", shape="rectangle", style="filled", width="0.7"];
+    Node33 [tooltip="PreInferEl1yolov8m/input_layer1(sink3)", label="sink"];
+    Node34 [tooltip="PreInferEl1yolov8m/input_layer1(source4)", label="source"];
+    Node33->Node34 [style="invis"];
+  }
+  subgraph cluster_1615 {
+    bgcolor="lightgrey";
+    color="lightgrey";
+    label=<<table border="0">
+	<tr><td align="text">PushQEl1yolov8m/input_layer1</td></tr>
+</table>>;
+    labelloc="t";
+    style="rounded";
+    node [color="white", fixedsize="true", height="0.5", shape="rectangle", style="filled", width="0.7"];
+    Node35 [tooltip="PushQEl1yolov8m/input_layer1(sink1)", label="sink"];
+    Node36 [tooltip="PushQEl1yolov8m/input_layer1(source2)", label="source"];
+    Node35->Node36 [style="invis"];
+  }
+  subgraph cluster_1716 {
+    bgcolor="lightgrey";
+    color="lightgrey";
+    label=<<table border="0">
+	<tr><td align="text">HwWriteEl1yolov8m/input_layer1</td></tr>
+</table>>;
+    labelloc="t";
+    style="rounded";
+    node [color="white", fixedsize="true", height="0.5", shape="rectangle", style="filled", width="0.7"];
+    Node37 [tooltip="HwWriteEl1yolov8m/input_layer1(sink0)", label="sink"];
+    Node38 [style="invis"];
+    Node37->Node38 [style="invis"];
+  }
+  Node12->Node9;
+  Node10->Node7;
+  Node8->Node0;
+  Node1->Node39;
+  Node16->Node13;
+  Node14->Node6;
+  Node20->Node17;
+  Node18->Node5;
+  Node24->Node21;
+  Node22->Node4;
+  Node28->Node25;
+  Node26->Node3;
+  Node32->Node29;
+  Node30->Node2;
+  Node40->Node33;
+  Node34->Node35;
+  Node36->Node37;
+}
