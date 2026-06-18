@@ -24,7 +24,6 @@ from hailo_platform import (
 
 from picamera.cameras import get_frame, camera_thread, stop_cameras
 from stereovision import draw_depth
-from calibration.depth_estimator import DepthEstimator
 
 
 # ── Config ─────────────────────────────────────────────────────────────────────
@@ -217,24 +216,6 @@ def draw(frame, boxes, confidences, class_ids):
                     cv.FONT_HERSHEY_SIMPLEX, 0.6, (255,255,255), 1, cv.LINE_AA)
     return frame
 
-def draw_detections(frame: np.ndarray, boxes, confidences, class_ids, depth_est, depth_map ) -> np.ndarray:
-    """Zeichnet Bounding Boxes mit Tiefenangabe auf das Bild."""
-    
-    for box, conf, cls in zip(boxes, confidences, class_ids):
-        x1, y1, x2, y2 = box
-        color = COLORS[cls].tolist()
-        #color = COCO_CLASSES.get(cls, (255, 255, 255))
-        label = f"{COCO_CLASSES[cls]} {conf:.2f}"
-        depth_str = depth_est.get_object_depth(depth_map, box, confidence=conf) if depth_map is not None else -1.0    
-        
-        label = f"{label} {depth_str:.0f}m"
-        (tw, th), _ = cv.getTextSize(label, cv.FONT_HERSHEY_SIMPLEX, 0.6, 1)
-        cv.rectangle(frame, (x1, y1-th-6), (x1+tw+4, y1), color, -1)
-        cv.putText(frame, label, (x1+2, y1-4),
-                    cv.FONT_HERSHEY_SIMPLEX, 0.6, (255,255,255), 1, cv.LINE_AA)
-    return frame
-    return vis
-
 
 # ── Main ───────────────────────────────────────────────────────────────────────
 
@@ -248,9 +229,7 @@ def main():
     t1 = threading.Thread(target=camera_thread, args=(1, "cam_1"), daemon=True)
     t0.start()
     t1.start()
-    time.sleep(2.0) # Give cameras a brief window to initialize and spin up
-
-    depth_est = DepthEstimator("./calibration/calib_images/stereo_calibration.json")
+    time.sleep(2.0) # Give cameras a brief window to initialize and spin upq
 
     with VDevice() as device:
         cfg_params = ConfigureParams.create_from_hef(
@@ -279,26 +258,15 @@ def main():
                     # Grab both streams when rendering preview.
                     frame_r = get_frame("cam_0")
                     frame_l = get_frame("cam_1")
-                    lores_frame_r = get_frame("lores_0")
-                    lores_frame_l = get_frame("lores_1")
+                    lores_frame = get_frame("lores_0")
 
-                    blob, scale, px, py = preprocess_lores(lores_frame_r)
+                    blob, scale, px, py = preprocess_lores(lores_frame)
                     raw = pipeline.infer({in_info.name: blob[np.newaxis]})
                     output = raw[out_info.name]  # (1, 84, 8400)
 
                     boxes, confs, cls_ids = postprocess(
                         output, scale, px, py, DISPLAY_W, DISPLAY_H)
-                    #print(f"Frame {frame_idx}: Detected {len(boxes)} objects.")
-                    depth_map, disparity, frame_l_rect = depth_est.compute_depth(frame_r, frame_l)
-                    if len(boxes) > 0:
-                        frame_r = draw_detections(frame_r, boxes, confs, cls_ids, depth_est, depth_map)
-                        #frame_r = draw(frame_r, boxes, confs, cls_ids)
-
-                        #print(f"Frame {frame_idx}: Detected {len(boxes)} objects. Computing depth...")
-                        #depth_map, disparity, frame_l_rect = depth_est.compute_depth(lores_frame_l,lores_frame_r)
-                        #for box in boxes:
-                        #   x1, y1, x2, y2 = box
-                        #    cv.rectangle(frame_r, (x1, y1), (x2, y2), (0,255,0), 2)
+                    draw(frame_r, boxes, confs, cls_ids)
                     
                     # FPS
                     frame_idx += 1
@@ -308,20 +276,14 @@ def main():
                     cv.putText(frame_r, f"FPS {fps:.1f} detections={len(boxes)} ", (10, 32),
                                 cv.FONT_HERSHEY_SIMPLEX, 1.0, (0,255,0), 2)
 
-                    #disparity = draw_depth(frame_r,frame_l)
+                    disparity = draw_depth(frame_r,frame_l)
+                    disparity = cv.normalize(disparity, None, 0, 255, cv.NORM_MINMAX).astype(np.uint8)  
                     cv.imshow("camera right", frame_r)
                     cv.imshow("camera left", frame_l)
                     cv.moveWindow("camera right", 0, 0)
-                    cv.moveWindow("camera left", 1282, 0)
-                    gray_disp = cv.merge([disparity, disparity, disparity]).astype(np.uint8)
-      
-                    cv.imshow("disparity", gray_disp)
-                    cv.resizeWindow("disparity", DISPLAY_W, DISPLAY_H)
-                    cv.moveWindow("disparity", 1280, 800)  
-                    cv.imshow("depth map", depth_map)  # Normalize for visualization
-                    cv.resizeWindow("depth map", DISPLAY_W, DISPLAY_H)
-                    cv.moveWindow("depth map", 0, 800)    
-  
+                    cv.moveWindow("camera left", 1282, 0)  
+                    cv.imshow("disparity", disparity)
+                    cv.moveWindow("disparity", 1280, 800)    
 
                     if cv.waitKey(1) & 0xFF == ord("q"):
                         stop_cameras()
