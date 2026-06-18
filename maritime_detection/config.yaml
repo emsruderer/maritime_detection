@@ -1,0 +1,32 @@
+cameras:
+  left_index: 0          # /dev/video0
+  right_index: 1         # /dev/video1
+  width: 1280
+  height: 720
+  fps: 30
+  baseline_mm: 120.0     # Abstand zwischen den Kameras in mm → ANPASSEN!
+
+stereo:
+  num_disparities: 128   # Muss Vielfaches von 16 sein
+  block_size: 11
+  min_disparity: 0
+  uniqueness_ratio: 10
+  speckle_window_size: 100
+  speckle_range: 32
+
+model:
+  input_size: [640, 640]
+  confidence_threshold: 0.45
+  nms_threshold: 0.5
+  classes:
+    0: "buoy"
+    1: "obstacle"
+    2: "boat"
+
+hailo:
+  hef_path: "model/weights/maritime_yolov8n.hef"
+  device_count: 1
+
+detection:
+  max_depth_m: 200.0     # Maximale Erkennungsreichweite in Metern
+  alert_distance_m: 20.0 # Warnung wenn Objekt näher als X Meter

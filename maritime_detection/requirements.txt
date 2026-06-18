@@ -1,0 +1,18 @@
+# Maritime Detection - Dependencies
+# Auf RPi 5 installieren:
+# pip install -r requirements.txt
+
+# Computer Vision
+opencv-python>=4.8.0
+numpy>=1.24.0
+
+# ML / Modell-Export (auf Entwicklungs-PC)
+ultralytics>=8.0.0      # YOLOv8
+torch>=2.0.0
+onnx>=1.14.0
+onnxruntime>=1.16.0     # Fallback ohne Hailo
+onnxsim>=0.4.0          # ONNX Simplifier
+
+# Hailo SDK (separat installieren - nicht über pip)
+# Siehe: https://hailo.ai/developer-zone/
+# hailo_platform  ← wird vom Hailo installer bereitgestellt
